@@ -1,0 +1,20 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/Inc",
+                "${workspaceFolder}/STM32F40x_FWLib/inc"
+            ],
+            "defines": [
+                "STM32F401xx",
+                "USE_STDPERIPH_DRIVER"
+            ],
+            "compilerPath": "/usr/bin/arm-none-eabi-gcc",
+            "cStandard": "c99",
+            "intelliSenseMode": "linux-gcc-arm",
+            "compileCommands": "${workspaceFolder}/build/compile_commands.json"
+        }
+    ],
+    "version": 4
+}

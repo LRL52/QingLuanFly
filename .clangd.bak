@@ -1,0 +1,21 @@
+CompileFlags:
+  Add: [-mthumb,
+        -mcpu=cortex-m4,
+        -std=c99,
+        -g,
+        -Os,
+        -ffunction-sections,
+        -fdata-sections,
+        -Wall,
+        -Wextra,
+        -Wno-error,
+        -DSTM32F401xx,
+        -DUSE_STDPERIPH_DRIVER,
+        -I/mnt/d/BaiduNetdiskWorkspace/STM32F401RE/OS/QingOS/Inc,
+        -I/mnt/d/BaiduNetdiskWorkspace/STM32F401RE/OS/QingOS/STM32F40x_FWLib/inc,
+        -I/mnt/d/BaiduNetdiskWorkspace/STM32F401RE/OS/QingOS/OS/inc
+  ]
+  Compiler: /opt/gcc-arm-none-eabi/bin/arm-none-eabi-gcc
+Diagnostics:
+  ClangTidy:
+    Remove: [bugprone-sizeof-expression]
