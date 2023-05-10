@@ -22,7 +22,7 @@ set(SOURCE_FILES ${SOURCE_FILES})
 
 # 设置编译器和链接器
 set(CMAKE_C_COMPILER arm-none-eabi-gcc)
-set(CMAKE_CXX_COMPILER arm-none-eabi-g++)
+# set(CMAKE_CXX_COMPILER arm-none-eabi-g++)
 set(CMAKE_ASM_COMPILER arm-none-eabi-gcc)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 set(CMAKE_LINKER arm-none-eabi-ld)
 
@@ -30,13 +30,16 @@ set(CMAKE_LINKER arm-none-eabi-ld)
 add_definitions(-DSTM32F401xx -DUSE_STDPERIPH_DRIVER)
 
 # 设置编译选项
-set(CMAKE_C_FLAGS "-mthumb -mcpu=cortex-m4 -std=c99 -g -Os -ffunction-sections -fdata-sections -Wall -Wextra \
+set(CMAKE_C_FLAGS "-mthumb -mcpu=cortex-m4 -std=c99 -g -Os \
+    -ffunction-sections -fdata-sections -Wall -Wextra \
     -Wno-self-assign -Wno-unused-parameter -Wno-empty-body")
-set(CMAKE_CXX_FLAGS "-mthumb -mcpu=cortex-m4 -std=gnu++17 -g -Os -ffunction-sections -fdata-sections -Wall -Wextra")
+# set(CMAKE_CXX_FLAGS "-mthumb -mcpu=cortex-m4 -std=gnu++17 -g -Os -ffunction-sections -fdata-sections -Wall -Wextra")
 set(CMAKE_ASM_FLAGS "-mthumb -mcpu=cortex-m4 -g -x assembler-with-cpp")
 
 # 设置链接选项
-set(CMAKE_EXE_LINKER_FLAGS "-mthumb -mabi=aapcs -mcpu=cortex-m4 --specs=nano.specs --specs=nosys.specs -Wl,--gc-sections -Wl,-Map=${PROJECT_NAME}.map -T${LINKER_SCRIPT}")
+set(CMAKE_EXE_LINKER_FLAGS "-mthumb -mabi=aapcs -mcpu=cortex-m4 \
+    --specs=nano.specs --specs=nosys.specs -u _printf_float -u _scanf_float \
+    -Wl,--gc-sections -Wl,-Map=${PROJECT_NAME}.map -T${LINKER_SCRIPT}")
 
 # 添加可执行文件
 add_executable(${PROJECT_NAME}.elf ${SOURCE_FILES} ${STARTUP_FILE} ${OS_CPU_A_FILE})

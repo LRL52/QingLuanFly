@@ -20,7 +20,7 @@ OS_STK Task2Stk[TASK_STK_SIZE];
 #define TASK2_PRIO 4
 
 void First_Task() {
-	delay_init(84);  //初始化延时函数
+	delay_init(84);  //初始化SysTick
 }
 
 void LED_Task() {
@@ -63,7 +63,7 @@ int main(void)
 	
 	RCC_ClocksTypeDef  rcc_clocks;
 	RCC_GetClocksFreq(&rcc_clocks);
-	printf("ClockInfo: SYSCLK = %d HCLK = %d PCLK1 = %d PCLK2 = %d\r\n", rcc_clocks.SYSCLK_Frequency, rcc_clocks.HCLK_Frequency, rcc_clocks.PCLK1_Frequency, rcc_clocks.PCLK2_Frequency);
+	printf("ClockInfo: SYSCLK = %lu HCLK = %lu PCLK1 = %lu PCLK2 = %lu\r\n", rcc_clocks.SYSCLK_Frequency, rcc_clocks.HCLK_Frequency, rcc_clocks.PCLK1_Frequency, rcc_clocks.PCLK2_Frequency);
 	I2cMaster_Init(); 
 	//printf("ret = %d\r\n", MPU_Init());
 	MPU6050ReadID();

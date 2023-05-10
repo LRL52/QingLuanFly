@@ -1,3 +1,6 @@
+CompileFlags:
+  Add: [-Wno-format]
+  Compiler: /opt/gcc-arm-none-eabi/bin/arm-none-eabi-gcc
 Diagnostics:
   ClangTidy:
     Remove: [bugprone-sizeof-expression]
