@@ -8,7 +8,7 @@
 #include "motor.h"
 #include "ucos_ii.h"
 
-#define TASK_STK_SIZE 128
+#define TASK_STK_SIZE 512
 
 OS_STK Task0Stk[TASK_STK_SIZE];
 #define TASK0_PRIO 3
@@ -23,7 +23,7 @@ void First_Task() {
 	delay_init(84);  //初始化SysTick
 }
 
-void LED_Task() {
+void LED_Task(void *arg) {
 	while (1) {
 		LED_On();
 		OSTimeDlyHMSM(0, 0, 1, 0);
@@ -32,7 +32,7 @@ void LED_Task() {
 	}
 }
 
-void Main_Task() {
+void Main_Task(void *arg) {
 	short Acel[3], Gyro[3], Mag[3];
 	float Temp;
 	while(1){
@@ -72,9 +72,16 @@ int main(void)
 	HMC_Init();
 
 	OSInit();
-	OSTaskCreate(First_Task, (void *)0, &Task0Stk[TASK_STK_SIZE - 1], TASK0_PRIO);
-	OSTaskCreate(LED_Task, (void *)0, &Task1Stk[TASK_STK_SIZE - 1], TASK1_PRIO);
-	OSTaskCreate(Main_Task, (void *)0, &Task2Stk[TASK_STK_SIZE - 1], TASK2_PRIO);
+	OSTaskCreateExt(First_Task, (void *)0, &Task0Stk[TASK_STK_SIZE - 1], TASK0_PRIO, TASK0_PRIO, Task0Stk, TASK_STK_SIZE, (void *)0, OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR);
+	OSTaskCreateExt(LED_Task, (void *)0, &Task1Stk[TASK_STK_SIZE - 1], TASK1_PRIO, TASK1_PRIO, Task1Stk, TASK_STK_SIZE, (void *)0, OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR);
+	OSTaskCreateExt(Main_Task, (void *)0, &Task2Stk[TASK_STK_SIZE - 1], TASK2_PRIO, TASK2_PRIO, Task2Stk, TASK_STK_SIZE, (void *)0, OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR);
+	// OSTaskCreate(First_Task, (void *)0, &Task0Stk[TASK_STK_SIZE - 1], TASK0_PRIO);
+	// OSTaskCreate(LED_Task, (void *)0, &Task1Stk[TASK_STK_SIZE - 1], TASK1_PRIO);
+	// OSTaskCreate(Main_Task, (void *)0, &Task2Stk[TASK_STK_SIZE - 1], TASK2_PRIO);
+	INT8U os_err;
+	OSTaskNameSet(TASK0_PRIO, (INT8U *)"First_Task", &os_err);
+	OSTaskNameSet(TASK1_PRIO, (INT8U *)"LED_Task", &os_err);
+	OSTaskNameSet(TASK2_PRIO, (INT8U *)"Main_Task", &os_err);
 
 	OSStart();
 	
