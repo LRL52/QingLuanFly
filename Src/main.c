@@ -7,6 +7,7 @@
 #include "mpu6050.h"
 #include "motor.h"
 #include "ucos_ii.h"
+#include "os_trace.h"
 
 #define TASK_STK_SIZE 512
 
@@ -21,6 +22,7 @@ OS_STK Task2Stk[TASK_STK_SIZE];
 
 void First_Task() {
 	delay_init(84);  //初始化SysTick
+	OS_TRACE_INIT();
 }
 
 void LED_Task(void *arg) {

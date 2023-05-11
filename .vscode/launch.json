@@ -1,17 +1,31 @@
 {
     "configurations": [
         {
-            "name": "Cortex-M4 Debug",
+            "name": "ST-Link Cortex-M4 Debug",
             "type": "cortex-debug",
             "request": "launch",
             "servertype": "openocd",
             "cwd": "${workspaceRoot}",
             "executable": "${workspaceRoot}/build/qingluan.elf",
-            "device": "STM32F401RET6",
+            "device": "STM32F401RE",
             "configFiles": [
                 "interface/stlink-v2-1.cfg",
                 "target/stm32f4x.cfg"
             ],
+            "svdFile": "${workspaceRoot}/Script/STM32F401.svd",
+            "runToEntryPoint": "main",
+        }, 
+
+        {
+            "name": "J-Link Cortex-M4 Debug",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "jlink",
+            "cwd": "${workspaceRoot}",
+            "executable": "${workspaceRoot}/build/qingluan.elf",
+            "device": "STM32F401RE",
+            "interface": "swd",
+            // "configFiles": ["${workspaceRoot}/STM32F401RE.cfg"],
             "svdFile": "${workspaceRoot}/Script/STM32F401.svd",
             "runToEntryPoint": "main",
         }
