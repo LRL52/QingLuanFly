@@ -15,6 +15,8 @@
     "clangd.arguments": [
       // 让 Clangd 生成更详细的日志
       "--log=verbose",
+      // 启用.clangd配置文件
+      "--enable-config",
       // 输出的 JSON 文件更美观
       "--pretty",
       // 全局补全(输入时弹出的建议将会提供 CMakeLists.txt 里配置的所有文件中可能的符号，会自动补充头文件)
@@ -40,7 +42,7 @@
       // 默认格式化风格: 谷歌开源项目代码指南
       // "--fallback-style=file",
       // 同时开启的任务数量
-      "-j=2",
+      "-j=8",
       // pch优化的位置(memory 或 disk，选择memory会增加内存开销，但会提升性能) 推荐在板子上使用disk
       "--pch-storage=disk",
       // 启用这项时，补全函数时，将会给参数提供占位符，键入后按 Tab 可以切换到下一占位符，乃至函数末
@@ -48,6 +50,7 @@
       "--function-arg-placeholders=false",
       // compelie_commands.json 文件的目录位置(相对于工作区，由于 CMake 生成的该文件默认在 build 文件夹中，故设置为 build)
       "--compile-commands-dir=build",
+      //询问编译器头文件的位置
       "--query-driver=/opt/gcc-arm-none-eabi/bin/arm-none-eabi-gcc"
       //"-isystem", "/usr/include"
     ],

@@ -7,7 +7,6 @@
 #include "mpu6050.h"
 #include "motor.h"
 #include "ucos_ii.h"
-#include "os_trace.h"
 
 #define TASK_STK_SIZE 512
 
@@ -21,8 +20,24 @@ OS_STK Task2Stk[TASK_STK_SIZE];
 #define TASK2_PRIO 4
 
 void First_Task() {
-	delay_init(84);  //初始化SysTick
-	OS_TRACE_INIT();
+	LED_Init();
+	LED_On();
+
+	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
+	MyUsart_Init();
+	printf("\r\nUSART1 F401RE Test\r\n");
+	
+	RCC_ClocksTypeDef  rcc_clocks;
+	RCC_GetClocksFreq(&rcc_clocks);
+	printf("ClockInfo: SYSCLK = %lu HCLK = %lu PCLK1 = %lu PCLK2 = %lu\r\n", rcc_clocks.SYSCLK_Frequency, rcc_clocks.HCLK_Frequency, rcc_clocks.PCLK1_Frequency, rcc_clocks.PCLK2_Frequency);
+	I2cMaster_Init(); 
+	MPU6050ReadID();
+	
+ 	MPU6050_Init();
+	HMC_Init();
+
+	SysTick_Init(84);  //初始化SysTick
+	OS_TRACE_INIT();   //初始化SystemView
 }
 
 void LED_Task(void *arg) {
@@ -53,25 +68,6 @@ void Main_Task(void *arg) {
 int main(void)
 { 
 	SystemInit();
-	// short Acel[3], Gyro[3], Mag[3];
-	// float Temp;
-	
- 	LED_Init();
-	LED_On();
-
-	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
-	MyUsart_Init();
-	printf("\r\nUSART1 F401RE Test\r\n");
-	
-	RCC_ClocksTypeDef  rcc_clocks;
-	RCC_GetClocksFreq(&rcc_clocks);
-	printf("ClockInfo: SYSCLK = %lu HCLK = %lu PCLK1 = %lu PCLK2 = %lu\r\n", rcc_clocks.SYSCLK_Frequency, rcc_clocks.HCLK_Frequency, rcc_clocks.PCLK1_Frequency, rcc_clocks.PCLK2_Frequency);
-	I2cMaster_Init(); 
-	//printf("ret = %d\r\n", MPU_Init());
-	MPU6050ReadID();
-	
- 	MPU6050_Init();
-	HMC_Init();
 
 	OSInit();
 	OSTaskCreateExt(First_Task, (void *)0, &Task0Stk[TASK_STK_SIZE - 1], TASK0_PRIO, TASK0_PRIO, Task0Stk, TASK_STK_SIZE, (void *)0, OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR);
