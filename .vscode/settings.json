@@ -54,4 +54,5 @@
       "--query-driver=/opt/gcc-arm-none-eabi/bin/arm-none-eabi-gcc"
       //"-isystem", "/usr/include"
     ],
+    "cortex-debug.variableUseNaturalFormat": true,
 }

@@ -5,21 +5,24 @@
 #include <stdio.h>
 
 #define N 6
-const int n = N; // 未知数个数和测量数据组数都为 6，即 beta = [Ox, Sx, Oy, Sy, Oz, Sz]T，
+const int n = N; // 未知数个数为 6，即 beta = [Ox, Sx, Oy, Sy, Oz, Sz]T，
                  // 其中 Ox, Oy, Oz 为偏移量，Sx, Sy, Sz 为比例系数
+#define M 100
+const int m = M; // 测量数据组数为 m
 
-float accData[N][3];
-// {
-//     {-0.019556, 0.012036, 1.685950},
-//     {1.018469, 0.069458, 0.720422},
-//     {-0.981909, 0.001819, 0.450183},
-//     {0.063464, -0.957397, 0.515881},
-//     {-0.021716, 1.004285, 0.713989},
-//     {0.032495, -0.022266, -0.387183}
-// };
-cali accCali;
-float magData[N][3];
-cali magCali;
+static const float PI = 3.1415926535897932384626433f;
+static const float gyroMUL = (250.0f / 32768.0f) * (PI / 180.0f);
+
+float accData[M][3];
+// Ox = 0.029524, Sx = 0.945539, Oy = ‑0.005819, Sy = 1.006130, Oz = 0.665767, Sz = 0.957096
+cali accCali = {0.029524, 0.945539, -0.005819, 1.006130, 0.665767, 0.957096};
+float magData[M][3];
+// Ox = 0.026252, Sx = 1.870596, Oy = 0.095540, Sy = 2.205835, Oz = ‑0.023895, Sz = 2.003066
+// cali magCali = {0.026252, 1.870596, 0.095540, 2.205835, -0.023895, 2.003066};
+cali magCali = {0, 1, 0, 1, 0, 1};
+float gyroData[M][3];
+// gyroCali.Ox = ‑0.038701, gyroCali.Oy = ‑0.032983, gyroCali.Oz = ‑0.014261
+cali gyroCali = {-0.038701, 0, -0.032983, 0, -0.014261, 0};
 static const float eps = 1e-6;
 float LM_lamda = 0.1f;
 
@@ -33,42 +36,71 @@ float constrainFloat(float x, float low, float high) {
 
 // 校准前收集数据
 void prepareData() {
-    // 测试数据1
-    // accData[0][0] = 0.0f; accData[0][1] = 0.0f; accData[0][2] = 2.0f;
-    // accData[1][0] = 0.0f; accData[1][1] = 0.0f; accData[1][2] = -2.0f;
-    // accData[2][0] = 0.0f; accData[2][1] = 1.0f; accData[2][2] = 0.0f;
-    // accData[3][0] = 0.0f; accData[3][1] = -1.0f; accData[3][2] = 0.0f;
-    // accData[4][0] = 1.0f; accData[4][1] = 0.0f; accData[4][2] = 0.0f;
-    // accData[5][0] = -1.0f; accData[5][1] = 0.0f; accData[5][2] = 0.0f;
     printf("Prepare data will begin in 5s...\r\n");
     OSTimeDlyHMSM(0, 0, 5, 0);
     printf("Prepare data begin...\r\n");
-    for (int i = 0; i < n; ++i) {
-        int m = 10; // 采样次数
-        float acc[3] = {0, 0, 0};
-        float mag[3] = {0, 0, 0};
-        for (int j = 0; j < m; ++j) {
-            short accTemp[3], magTemp[3];
-            MPU6050ReadAcc(accTemp);
-            HMC_ReadMa(magTemp);
-            for (int k = 0; k < 3; ++k) {
-                acc[k] += accTemp[k] / 16384.0f; // 加速度计量程变了这里记着改！
-                mag[k] += magTemp[k] / 1090.0f; // 磁力计量程变了这里记着改！
-            }
-            OSTimeDlyHMSM(0, 0, 0, 100);
-        }
+    // for (int i = 0; i < n; ++i) {
+    //     int m = 10; // 采样次数
+    //     float acc[3] = {0, 0, 0};
+    //     float mag[3] = {0, 0, 0};
+    //     for (int j = 0; j < m; ++j) {
+    //         short accTemp[3], magTemp[3];
+    //         MPU6050ReadAcc(accTemp);
+    //         HMC_ReadMa(magTemp);
+    //         for (int k = 0; k < 3; ++k) {
+    //             acc[k] += accTemp[k] / 16384.0f; // 加速度计量程变了这里记着改！
+    //             mag[k] += magTemp[k] / 1090.0f; // 磁力计量程变了这里记着改！
+    //         }
+    //         OSTimeDlyHMSM(0, 0, 0, 100);
+    //     }
+    //     for (int j = 0; j < 3; ++j) {
+    //         accData[i][j] = acc[j] / m;
+    //         magData[i][j] = mag[j] / m;
+    //     }
+    //     printf("accData[%d] = {%f, %f, %f}\r\n", i, accData[i][0], accData[i][1], accData[i][2]);
+    //     printf("magData[%d] = {%f, %f, %f}\r\n", i, magData[i][0], magData[i][1], magData[i][2]);
+    //     printf("Finished %d/%d\r\n", i + 1, n);
+    //     if (i != n - 1) {
+    //         printf("Next data will be collected in 3s...\r\n");
+    //         OSTimeDlyHMSM(0, 0, 3, 0);
+    //     }
+    // }
+    for (int i = 0; i < m; ++i) {
+        short accTemp[3], magTemp[3];
+        MPU6050ReadAcc(accTemp);
+        HMC_ReadMa(magTemp);
         for (int j = 0; j < 3; ++j) {
-            accData[i][j] = acc[j] / m;
-            magData[i][j] = mag[j] / m;
+            accData[i][j] = accTemp[j] / 16384.0f; // 加速度计量程变了这里记着改！
+            magData[i][j] = magTemp[j] / 1090.0f; // 磁力计量程变了这里记着改！
         }
         printf("accData[%d] = {%f, %f, %f}\r\n", i, accData[i][0], accData[i][1], accData[i][2]);
         printf("magData[%d] = {%f, %f, %f}\r\n", i, magData[i][0], magData[i][1], magData[i][2]);
-        printf("Finished %d/%d\r\n", i + 1, n);
-        if (i != n - 1) {
-            printf("Next data will be collected in 3s...\r\n");
-            OSTimeDlyHMSM(0, 0, 3, 0);
+        printf("Finished %d/%d\r\n", i + 1, m);
+        if (i != m - 1) 
+            OSTimeDlyHMSM(0, 0, 0, 25); // 采样频率 40Hz
+    }
+	OSTimeDlyHMSM(0, 0, 3, 0);	
+    for (int i = 0; i < m; ++i) {
+        short gyroTemp[3];
+        MPU6050ReadGyro(gyroTemp);
+        for (int j = 0; j < 3; ++j) {
+            gyroData[i][j] = gyroTemp[j] * gyroMUL;
+        }
+        printf("gyroData[%d] = {%f, %f, %f}\r\n", i, gyroData[i][0], gyroData[i][1], gyroData[i][2]);
+        printf("Finished %d/%d\r\n", i + 1, m);
+        if (i != m - 1) 
+            OSTimeDlyHMSM(0, 0, 0, 10); // 采样频率 100Hz
+    }
+    float gyroSum[3] = {0, 0, 0};
+    for (int i = 0; i < m; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            gyroSum[j] += gyroData[i][j];
         }
     }
+    gyroCali.Ox = gyroSum[0] / m;
+    gyroCali.Oy = gyroSum[1] / m;
+    gyroCali.Oz = gyroSum[2] / m;
+    printf("gyroCali.Ox = %f, gyroCali.Oy = %f, gyroCali.Oz = %f\r\n", gyroCali.Ox, gyroCali.Oy, gyroCali.Oz);
 }
 
 void gaussElimination(float (*a)[N + 1]) {
@@ -103,8 +135,8 @@ void gaussElimination(float (*a)[N + 1]) {
 // 高斯牛顿迭代
 void gaussNewton(cali *caliVal, float (*data)[3]) {
     float Delta = 100.0f, DeltaNew = 0.0f; 
-    static float Jr[N][N], JrT[N][N]; // Jacobi 矩阵以及 Jacobi 矩阵的转置
-    static float r[N]; // 残差函数 r(beta)
+    static float Jr[M][N], JrT[N][M]; // Jacobi 矩阵以及 Jacobi 矩阵的转置
+    static float r[M]; // 残差函数 r(beta)
     static float delta[N][N + 1]; // 待求的迭代增量 delta，也是高斯消元的系数矩阵
     float sum = 0.0f;
 
@@ -118,7 +150,7 @@ void gaussNewton(cali *caliVal, float (*data)[3]) {
     // 迭代
     while (Delta > eps && cnt < 100) {
         // 计算 Jacobi 矩阵
-        for (int i = 0; i < n; ++i) {
+        for (int i = 0; i < m; ++i) {
             Jr[i][0] = 2.0f * beta.Sx * beta.Sx * (beta.Ox - data[i][0]);
             Jr[i][1] = 2.0f * (data[i][0] - beta.Ox) * (data[i][0] - beta.Ox) * beta.Sx;
             Jr[i][2] = 2.0f * beta.Sy * beta.Sy * (beta.Oy - data[i][1]);
@@ -127,14 +159,14 @@ void gaussNewton(cali *caliVal, float (*data)[3]) {
             Jr[i][5] = 2.0f * (data[i][2] - beta.Oz) * (data[i][2] - beta.Oz) * beta.Sz;
         }
         // 计算 Jacobi 矩阵的转置
-        for (int i = 0; i < n; ++i) {
+        for (int i = 0; i < m; ++i) {
             for (int j = 0; j < n; ++j) {
                 JrT[j][i] = Jr[i][j];
             }
         }
         sum = 0.0;
         // 计算残差函数 r(beta)
-        for (int i = 0; i < n; ++i) {
+        for (int i = 0; i < m; ++i) {
             r[i] = beta.Sx * beta.Sx * (beta.Ox - data[i][0]) * (beta.Ox - data[i][0]) + 
                    beta.Sy * beta.Sy * (beta.Oy - data[i][1]) * (beta.Oy - data[i][1]) + 
                    beta.Sz * beta.Sz * (beta.Oz - data[i][2]) * (beta.Oz - data[i][2]) - 1.0f;
@@ -144,7 +176,7 @@ void gaussNewton(cali *caliVal, float (*data)[3]) {
         for (int i = 0; i < n; ++i) {
             for (int j = 0; j < n; ++j) {
                 delta[i][j] = 0;
-                for (int k = 0; k < n; ++k) {
+                for (int k = 0; k < m; ++k) {
                     delta[i][j] += JrT[i][k] * Jr[k][j];
                 }
             }
@@ -152,7 +184,7 @@ void gaussNewton(cali *caliVal, float (*data)[3]) {
         // 计算 JrT * r 并作为增广列放入 delta
         for (int i = 0; i < n; ++i) {
             delta[i][n] = 0;
-            for (int j = 0; j < n; ++j) {
+            for (int j = 0; j < m; ++j) {
                 delta[i][n] += JrT[i][j] * r[j];
             }
         }
@@ -186,7 +218,7 @@ void gaussNewton(cali *caliVal, float (*data)[3]) {
             LM_lamda = constrainFloat(LM_lamda, 0, 1e10f);
         }
         
-        printf("After %d iterations: Ox = %f, Sx = %f, Oy = %f, Sy = %f, Oz = %f, Sz = %f sum = %f\r\n", 
+        printf("After %d iterations: Ox = %f, Sx = %f, Oy = %f, Sy = %f, Oz = %f, Sz = %f lastSum = %f\r\n", 
             ++cnt, beta.Ox, beta.Sx, beta.Oy, beta.Sy, beta.Oz, beta.Sz, sum);
     }
     // 将校准结果写入 caliVal

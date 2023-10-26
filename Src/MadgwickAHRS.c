@@ -16,24 +16,28 @@
 // Header files
 
 #include "MadgwickAHRS.h"
+#include "stm32f4xx.h"
+#include "stm32f4xx_rcc.h"
 #include <math.h>
 
 //---------------------------------------------------------------------------------------------------
 // Definitions
 
-#define sampleFreq	500.0f		// sample frequency in Hz
-#define betaDef		0.1f		// 2 * proportional gain
+// #define sampleFreq	500.0f		// sample frequency in Hz
+extern float deltaT;
+#define betaDef		0.5f		// 2 * proportional gain
 
 //---------------------------------------------------------------------------------------------------
 // Variable definitions
 
 volatile float beta = betaDef;								// 2 * proportional gain (Kp)
-volatile float q0 = 1.0f, q1 = 0.0f, q2 = 0.0f, q3 = 0.0f;	// quaternion of sensor frame relative to auxiliary frame
+extern volatile float q0, q1, q2, q3;	// quaternion of sensor frame relative to auxiliary frame
+
 
 //---------------------------------------------------------------------------------------------------
 // Function declarations
 
-float invSqrt(float x);
+static float invSqrt(float x);
 
 //====================================================================================================
 // Functions
@@ -100,8 +104,8 @@ void MadgwickAHRSupdate(float gx, float gy, float gz, float ax, float ay, float 
 		// Reference direction of Earth's magnetic field
 		hx = mx * q0q0 - _2q0my * q3 + _2q0mz * q2 + mx * q1q1 + _2q1 * my * q2 + _2q1 * mz * q3 - mx * q2q2 - mx * q3q3;
 		hy = _2q0mx * q3 + my * q0q0 - _2q0mz * q1 + _2q1mx * q2 - my * q1q1 + my * q2q2 + _2q2 * mz * q3 - my * q3q3;
-		_2bx = sqrt(hx * hx + hy * hy);
-		_2bz = -_2q0mx * q2 + _2q0my * q1 + mz * q0q0 + _2q1mx * q3 - mz * q1q1 + _2q2 * my * q3 - mz * q2q2 + mz * q3q3;
+		_2bx = 2.0f * sqrt(hx * hx + hy * hy);
+		_2bz = 2.0f * (-_2q0mx * q2 + _2q0my * q1 + mz * q0q0 + _2q1mx * q3 - mz * q1q1 + _2q2 * my * q3 - mz * q2q2 + mz * q3q3);
 		_4bx = 2.0f * _2bx;
 		_4bz = 2.0f * _2bz;
 
@@ -124,10 +128,14 @@ void MadgwickAHRSupdate(float gx, float gy, float gz, float ax, float ay, float 
 	}
 
 	// Integrate rate of change of quaternion to yield quaternion
-	q0 += qDot1 * (1.0f / sampleFreq);
-	q1 += qDot2 * (1.0f / sampleFreq);
-	q2 += qDot3 * (1.0f / sampleFreq);
-	q3 += qDot4 * (1.0f / sampleFreq);
+	// q0 += qDot1 * (1.0f / sampleFreq);
+	// q1 += qDot2 * (1.0f / sampleFreq);
+	// q2 += qDot3 * (1.0f / sampleFreq);
+	// q3 += qDot4 * (1.0f / sampleFreq);
+	q0 += qDot1 * deltaT;
+	q1 += qDot2 * deltaT;
+	q2 += qDot3 * deltaT;
+	q3 += qDot4 * deltaT;
 
 	// Normalise quaternion
 	recipNorm = invSqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
@@ -195,10 +203,14 @@ void MadgwickAHRSupdateIMU(float gx, float gy, float gz, float ax, float ay, flo
 	}
 
 	// Integrate rate of change of quaternion to yield quaternion
-	q0 += qDot1 * (1.0f / sampleFreq);
-	q1 += qDot2 * (1.0f / sampleFreq);
-	q2 += qDot3 * (1.0f / sampleFreq);
-	q3 += qDot4 * (1.0f / sampleFreq);
+	// q0 += qDot1 * (1.0f / sampleFreq);
+	// q1 += qDot2 * (1.0f / sampleFreq);
+	// q2 += qDot3 * (1.0f / sampleFreq);
+	// q3 += qDot4 * (1.0f / sampleFreq);
+	q0 += qDot1 * deltaT;
+	q1 += qDot2 * deltaT;
+	q2 += qDot3 * deltaT;
+	q3 += qDot4 * deltaT;
 
 	// Normalise quaternion
 	recipNorm = invSqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
@@ -212,7 +224,7 @@ void MadgwickAHRSupdateIMU(float gx, float gy, float gz, float ax, float ay, flo
 // Fast inverse square-root
 // See: http://en.wikipedia.org/wiki/Fast_inverse_square_root
 
-float invSqrt(float x) {
+static float invSqrt(float x) {
 	float halfx = 0.5f * x;
 	float y = x;
 	long i = *(long*)&y;
@@ -220,6 +232,20 @@ float invSqrt(float x) {
 	y = *(float*)&i;
 	y = y * (1.5f - (halfx * y * y));
 	return y;
+}
+
+void TIM4_Init() {
+	TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStructure;
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
+
+	TIM_TimeBaseInitStructure.TIM_ClockDivision = TIM_CKD_DIV1;
+	TIM_TimeBaseInitStructure.TIM_CounterMode = TIM_CounterMode_Up;
+	TIM_TimeBaseInitStructure.TIM_Period = 65535;
+	TIM_TimeBaseInitStructure.TIM_Prescaler = 41;
+
+	TIM_TimeBaseInit(TIM4, &TIM_TimeBaseInitStructure);
+	TIM_ARRPreloadConfig(TIM4, ENABLE);
+	TIM_Cmd(TIM4, ENABLE);
 }
 
 //====================================================================================================

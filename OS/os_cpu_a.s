@@ -373,9 +373,10 @@ PendSV_Handler:
     LDR     R2, [R1]
     STR     R2, [R5]
 
-    ORR     LR,  R4, #0x04                                      @ Ensure exception return uses process stack
+    @ ORR     LR,  R4, #0x04                                      @ Ensure exception return uses process stack
     LDR     R0,  [R2]                                           @ R0 is new process SP; SP = OSTCBHighRdy->OSTCBStkPtr;
     LDMFD   R0!, {R4-R11, R14}                                  @ Restore r4-11, R14 from new process stack
+    ORR     LR,  LR, #0x04                                      @ Ensure exception return uses process stack
     MSR     PSP, R0                                             @ Load PSP with new process SP
 
     MOV     R2, #0                                              @ Restore BASEPRI priority level to 0

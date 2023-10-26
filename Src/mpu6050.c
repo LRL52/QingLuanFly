@@ -155,6 +155,6 @@ void HMC_ReadMa(short *MaData) {
 	u8 buf[6];
 	HMC_ReadData(HMC_DATA_XMSB, buf, 6);
 	MaData[0] = (buf[0] << 8) + buf[1];
-	MaData[1] = (buf[2] << 8) + buf[3];
-	MaData[2] = (buf[4] << 8) + buf[5];
+	MaData[2] = (buf[2] << 8) + buf[3];
+	MaData[1] = (buf[4] << 8) + buf[5];
 }

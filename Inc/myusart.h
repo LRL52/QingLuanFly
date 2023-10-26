@@ -4,5 +4,6 @@
 #include <stdio.h>
 
 void MyUsart_Init(void);
+int _write (int fd, char *pBuffer, int size);
 
 #endif

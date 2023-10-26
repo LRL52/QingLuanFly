@@ -8,6 +8,7 @@ typedef struct _cali {
 
 extern cali accCali;
 extern cali magCali;
+extern cali gyroCali;
 extern float accData[][3];
 extern float magData[][3];
 
