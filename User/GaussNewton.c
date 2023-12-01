@@ -14,15 +14,17 @@ static const float PI = 3.1415926535897932384626433f;
 static const float gyroMUL = (250.0f / 32768.0f) * (PI / 180.0f);
 
 float accData[M][3];
-// Ox = 0.029524, Sx = 0.945539, Oy = ‑0.005819, Sy = 1.006130, Oz = 0.665767, Sz = 0.957096
-cali accCali = {0.029524, 0.945539, -0.005819, 1.006130, 0.665767, 0.957096};
+// Ox = 0.036576, Sx = 0.945495, Oy = 0.011061, Sy = 0.993726, Oz = 0.650084, Sz = 0.956474
+// Ox = 0.010458, Sx = 0.990372, Oy = -0.014932, Sy = 0.989203, Oz = -0.129220, Sz = 0.987692
+cali accCali = {0.010458, 0.990372, -0.014932, 0.989203, -0.129220, 0.987692};
 float magData[M][3];
 // Ox = 0.026252, Sx = 1.870596, Oy = 0.095540, Sy = 2.205835, Oz = ‑0.023895, Sz = 2.003066
 // cali magCali = {0.026252, 1.870596, 0.095540, 2.205835, -0.023895, 2.003066};
 cali magCali = {0, 1, 0, 1, 0, 1};
 float gyroData[M][3];
-// gyroCali.Ox = ‑0.038701, gyroCali.Oy = ‑0.032983, gyroCali.Oz = ‑0.014261
-cali gyroCali = {-0.038701, 0, -0.032983, 0, -0.014261, 0};
+// gyroCali.Ox = -0.038951, gyroCali.Oy = -0.032154, gyroCali.Oz = -0.014719
+// gyroCali.Ox = -0.027533, gyroCali.Oy = 0.003023, gyroCali.Oz = 0.007796
+cali gyroCali = {-0.027533, 0, 0.003023, 0, 0.007796, 0};
 static const float eps = 1e-6;
 float LM_lamda = 0.1f;
 

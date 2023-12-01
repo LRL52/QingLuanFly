@@ -41,7 +41,7 @@ void Motor_Init(u16 psc, u16 arr) {
 	TIM_OCInitTypeStructure.TIM_OCMode = TIM_OCMode_PWM1;
 	TIM_OCInitTypeStructure.TIM_OCPolarity = TIM_OCPolarity_High;
 	TIM_OCInitTypeStructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitTypeStructure.TIM_Pulse = 10;
+	TIM_OCInitTypeStructure.TIM_Pulse = 0;
 	TIM_OC1Init(TIM3, &TIM_OCInitTypeStructure);
 	TIM_OC2Init(TIM3, &TIM_OCInitTypeStructure);
 	TIM_OC3Init(TIM3, &TIM_OCInitTypeStructure);

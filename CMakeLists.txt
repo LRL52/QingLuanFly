@@ -7,26 +7,32 @@ project(qingluan C ASM)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # 添加启动文件
-set(STARTUP_FILE ${CMAKE_CURRENT_SOURCE_DIR}/startup_stm32f401xe.s)
+set(STARTUP_FILE ${CMAKE_CURRENT_SOURCE_DIR}/Core/startup_stm32f401xe.s)
 set(OS_CPU_A_FILE ${CMAKE_CURRENT_SOURCE_DIR}/OS/os_cpu_a.s)
-set(SEGGER_RTT_ASM_FILE ${CMAKE_CURRENT_SOURCE_DIR}/SEGGER/SEGGER_RTT_ASM_ARMv7M.s)
+set(SEGGER_RTT_ASM_FILE ${CMAKE_CURRENT_SOURCE_DIR}/SystemView/SEGGER_RTT_ASM_ARMv7M.s)
 
 # 添加链接器脚本文件
-set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/Script/STM32F401RETx_FLASH.ld)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/Inc)
+set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/Misc/STM32F401RETx_FLASH.ld)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/Core)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/STM32F40x_FWLib/inc)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/OS/inc)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/SEGGER)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/SystemView)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/User)
+
 # 添加源文件
-file(GLOB SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/Src/*.c" "${CMAKE_CURRENT_SOURCE_DIR}/OS/src/*.c" 
-    "${CMAKE_CURRENT_SOURCE_DIR}/STM32F40x_FWLib/src/*.c" "${CMAKE_CURRENT_SOURCE_DIR}/SEGGER/*.c")
+file(GLOB SOURCE_FILES 
+    "${CMAKE_CURRENT_SOURCE_DIR}/User/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/OS/src/*.c" 
+    "${CMAKE_CURRENT_SOURCE_DIR}/STM32F40x_FWLib/src/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/SystemView/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/*.c")
 set(SOURCE_FILES ${SOURCE_FILES})
 # AUX_SOURCE_DIRECTORY(${CMAKE_CURRENT_SOURCE_DIR}/STM32F40x_FWLib/src SOURCE_LIB)
 
 # 设置编译器和链接器
 set(CMAKE_C_COMPILER arm-none-eabi-gcc)
 # set(CMAKE_CXX_COMPILER arm-none-eabi-g++)
-set(CMAKE_ASM_COMPILER arm-none-eabi-gcc)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+set(CMAKE_ASM_COMPILER arm-none-eabi-gcc)                                                        
 set(CMAKE_LINKER arm-none-eabi-ld)
 
 # 增加宏定义
@@ -53,4 +59,6 @@ add_custom_target(${PROJECT_NAME}.bin ALL DEPENDS ${PROJECT_NAME}.elf COMMAND ar
 # 烧录程序
 add_custom_target(flash COMMAND st-flash --reset write ${PROJECT_NAME}.bin 0x08000000 WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
 # openocd烧录
-add_custom_target(openocd COMMAND openocd -f ${CMAKE_CURRENT_SOURCE_DIR}/Script/STM32F401RE.cfg -c init -c "reset halt" -c "flash write_image erase ${PROJECT_NAME}.bin 0x08000000" -c "reset" -c shutdown WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+# add_custom_target(openocd COMMAND openocd -f ${CMAKE_CURRENT_SOURCE_DIR}/Misc/STM32F401RE.cfg -c init -c "reset halt" -c "flash write_image erase ${PROJECT_NAME}.bin 0x08000000" -c "reset" -c shutdown WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+
+add_custom_target(openocd COMMAND openocd -f interface/cmsis-dap.cfg -f target/stm32f4x.cfg -c init -c "reset halt" -c "flash write_image erase ${PROJECT_NAME}.bin 0x08000000" -c "reset" -c shutdown WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})

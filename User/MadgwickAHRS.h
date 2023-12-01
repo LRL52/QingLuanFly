@@ -10,14 +10,17 @@
 // 02/10/2011	SOH Madgwick	Optimised for reduced CPU load
 //
 //=====================================================================================================
-#ifndef MadgwickAHRS_h
-#define MadgwickAHRS_h
+#ifndef __MadgwickAHRS_H__
+#define __MadgwickAHRS_H__
 
 //----------------------------------------------------------------------------------------------------
 // Variable declaration
 
-extern volatile float beta;				// algorithm gain
-extern volatile float q0, q1, q2, q3;	// quaternion of sensor frame relative to auxiliary frame
+extern const float PI, RAD_TO_DEGREE, DEGREE_TO_RAD, RAW_TO_RAD;
+
+typedef struct {
+	float yaw, pitch, roll;
+} Angle;
 
 //---------------------------------------------------------------------------------------------------
 // Function declarations

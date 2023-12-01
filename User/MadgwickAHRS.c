@@ -1,49 +1,25 @@
-//=====================================================================================================
-// MadgwickAHRS.c
-//=====================================================================================================
-//
-// Implementation of Madgwick's IMU and AHRS algorithms.
-// See: http://www.x-io.co.uk/node/8#open_source_ahrs_and_imu_algorithms
-//
-// Date			Author          Notes
-// 29/09/2011	SOH Madgwick    Initial release
-// 02/10/2011	SOH Madgwick	Optimised for reduced CPU load
-// 19/02/2012	SOH Madgwick	Magnetometer measurement is normalised
-//
-//=====================================================================================================
-
-//---------------------------------------------------------------------------------------------------
-// Header files
-
 #include "MadgwickAHRS.h"
 #include "stm32f4xx.h"
 #include "stm32f4xx_rcc.h"
 #include <math.h>
 
-//---------------------------------------------------------------------------------------------------
-// Definitions
 
 // #define sampleFreq	500.0f		// sample frequency in Hz
 extern float deltaT;
-#define betaDef		0.5f		// 2 * proportional gain
+#define betaDef		0.066f		// 2 * proportional gain
 
-//---------------------------------------------------------------------------------------------------
-// Variable definitions
+const float PI = 3.1415926535897932384626433f;
+const float RAD_TO_DEGREE = 180.0f / PI;
+const float DEGREE_TO_RAD = PI / 180.0f;
+const float RAW_TO_RAD = (250.0f / 32768.0f) * DEGREE_TO_RAD;
 
 volatile float beta = betaDef;								// 2 * proportional gain (Kp)
 extern volatile float q0, q1, q2, q3;	// quaternion of sensor frame relative to auxiliary frame
 
 
-//---------------------------------------------------------------------------------------------------
-// Function declarations
 
 static float invSqrt(float x);
 
-//====================================================================================================
-// Functions
-
-//---------------------------------------------------------------------------------------------------
-// AHRS algorithm update
 
 void MadgwickAHRSupdate(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz) {
 	float recipNorm;
@@ -145,8 +121,6 @@ void MadgwickAHRSupdate(float gx, float gy, float gz, float ax, float ay, float 
 	q3 *= recipNorm;
 }
 
-//---------------------------------------------------------------------------------------------------
-// IMU algorithm update
 
 void MadgwickAHRSupdateIMU(float gx, float gy, float gz, float ax, float ay, float az) {
 	float recipNorm;
@@ -220,7 +194,7 @@ void MadgwickAHRSupdateIMU(float gx, float gy, float gz, float ax, float ay, flo
 	q3 *= recipNorm;
 }
 
-//---------------------------------------------------------------------------------------------------
+
 // Fast inverse square-root
 // See: http://en.wikipedia.org/wiki/Fast_inverse_square_root
 
@@ -241,13 +215,9 @@ void TIM4_Init() {
 	TIM_TimeBaseInitStructure.TIM_ClockDivision = TIM_CKD_DIV1;
 	TIM_TimeBaseInitStructure.TIM_CounterMode = TIM_CounterMode_Up;
 	TIM_TimeBaseInitStructure.TIM_Period = 65535;
-	TIM_TimeBaseInitStructure.TIM_Prescaler = 41;
+	TIM_TimeBaseInitStructure.TIM_Prescaler = 83; // 计数器频率为 84MHz / (83 + 1) = 1MHz
 
 	TIM_TimeBaseInit(TIM4, &TIM_TimeBaseInitStructure);
 	TIM_ARRPreloadConfig(TIM4, ENABLE);
 	TIM_Cmd(TIM4, ENABLE);
 }
-
-//====================================================================================================
-// END OF CODE
-//====================================================================================================

@@ -7,8 +7,6 @@ Purpose :
 /****************************** Includes *****************************/
 #include "stm32f4xx.h"
 
-#include "delay.h"
-#include "myusart.h"
 /****************************** Defines *******************************/
 
 #define I2C_SPEED                 400000

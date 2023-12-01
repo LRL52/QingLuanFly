@@ -1,5 +1,7 @@
 CompileFlags:
-  Add: [-Wno-format]
+  Add: [
+    -Wno-format
+  ]
   Compiler: /opt/gcc-arm-none-eabi/bin/arm-none-eabi-gcc
 Diagnostics:
   ClangTidy:

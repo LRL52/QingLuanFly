@@ -400,5 +400,7 @@ void HMC_ReadMa(short *MaData);
 void HMC_ReadData(u8 reg_add, unsigned char* Read, u8 num);
 void HMC_WriteReg(u8 reg_add, u8 reg_dat);
 
+void gyroLowPassFilter(float *gyro, float *gyroFiltered);
+
 
 #endif  /*__MPU6050*/
