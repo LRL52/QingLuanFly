@@ -5,7 +5,7 @@
 
 
 // #define sampleFreq	500.0f		// sample frequency in Hz
-extern float deltaT;
+extern volatile float deltaT;
 #define betaDef		0.066f		// 2 * proportional gain
 
 const float PI = 3.1415926535897932384626433f;

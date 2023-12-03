@@ -15,6 +15,8 @@
   ******************************************************************************
   */ 
 #include "i2c.h"
+#include "os_cfg.h"
+#include "ucos_ii.h"
 
 
 /********************************* Defines ************************************/
@@ -185,7 +187,7 @@ tryWriteAgain:
     if( retries++ > 4 )
         return ret;
     
-    Delay(retry_in_mlsec);
+    OSTimeDlyHMSM(0, 0, 0, retry_in_mlsec);
     goto tryWriteAgain;
   }
   return ret;  
@@ -217,7 +219,7 @@ tryReadAgain:
     if( retries++ > 4 )
         return ret;
     
-    Delay(retry_in_mlsec);
+    OSTimeDlyHMSM(0, 0, 0, retry_in_mlsec);
     goto tryReadAgain;
   } 
   return ret;
@@ -248,8 +250,8 @@ static unsigned long ST_Sensors_I2C_WriteRegister(unsigned char Address, unsigne
 //  RegisterValue = RegisterValue + (RegisterLen - 1);
 
   /* Wait for the busy flag to be cleared */
-  //WAIT_FOR_FLAG (I2C_FLAG_BUSY, RESET, I2Cx_LONG_TIMEOUT, 1);
-	while(IIC_Check_SR2Status(1)){};
+  WAIT_FOR_FLAG (I2C_FLAG_BUSY, RESET, I2Cx_LONG_TIMEOUT, 1);
+	// while(IIC_Check_SR2Status(1)){};
   
   /* Start the config sequence */
   //I2C_GenerateSTART(SENSORS_I2C, ENABLE);
@@ -320,8 +322,8 @@ static unsigned long ST_Sensors_I2C_ReadRegister(unsigned char Address, unsigned
   __IO uint32_t  I2CTimeout = I2Cx_LONG_TIMEOUT;
    
   /* Wait for the busy flag to be cleared */
-  //WAIT_FOR_FLAG (I2C_FLAG_BUSY, RESET, I2Cx_LONG_TIMEOUT, 7);
-	while(IIC_Check_SR2Status(1)){};
+  WAIT_FOR_FLAG (I2C_FLAG_BUSY, RESET, I2Cx_LONG_TIMEOUT, 7);
+	// while(IIC_Check_SR2Status(1)){};
   
   /* Start the config sequence */
   //I2C_GenerateSTART(SENSORS_I2C, ENABLE);
@@ -548,7 +550,7 @@ tryWriteAgain:
     if( retries++ > 4 )
         return ret;
     
-    Delay(retry_in_mlsec);
+    OSTimeDlyHMSM(0, 0, 0, retry_in_mlsec);
     goto tryWriteAgain;
   }
   return ret;  
@@ -579,7 +581,7 @@ tryReadAgain:
     if( retries++ > 4 )
         return ret;
     
-    Delay(retry_in_mlsec);
+    OSTimeDlyHMSM(0, 0, 0, retry_in_mlsec);
     goto tryReadAgain;
   } 
   return ret;
@@ -774,7 +776,7 @@ endReadLoop:
 
 
 
-static unsigned short RETRY_IN_MLSEC  = 55; //55 -> 555
+static unsigned short RETRY_IN_MLSEC  = 555; //55 -> 555
 
 
 /**

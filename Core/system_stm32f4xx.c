@@ -602,10 +602,10 @@ static void SetSysClock(void)
 #endif /* STM32F40_41xxx || STM32F427_437x || STM32F429_439xx */
 
 #if defined (STM32F401xx)
-    /* PCLK2 = HCLK / 2*/
+    /* PCLK2 = HCLK / 1*/
     RCC->CFGR |= RCC_CFGR_PPRE2_DIV1;
     
-    /* PCLK1 = HCLK / 4*/
+    /* PCLK1 = HCLK / 2*/
     RCC->CFGR |= RCC_CFGR_PPRE1_DIV2;
 #endif /* STM32F401xx */
    

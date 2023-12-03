@@ -7,7 +7,7 @@
 
 const float OUTER_INT_MAX = 40.0f;      // 外环积分限幅，对应角度误差累积和
 const float INNER_INT_MAX = 40.0f;      // 内环积分限幅，对应角速度误差累积和
-const float PWM_OUT_MAX = 200.0f;       // PWM 输出限幅，100.0 对应 10% 的油门
+const float PWM_OUT_MAX = 200.0f;       // PWM 输出限幅，200.0 对应 20% 的油门
 
 // 对应 roll 内环、 roll 外环、 pitch 内环、 pitch 外环、 yaw 单环
 PID_t rollInner, rollOuter, pitchInner, pitchOuter, yawSingle;
@@ -23,22 +23,22 @@ extern float deltaT;
 
 void pidInit() {
     // roll
-    rollOuter.Kp = 4.0f;
-    rollOuter.Ki = 0.0f;
-    rollOuter.Kd = 0.0f;
+    rollOuter.Kp = 5.0f;
+    rollOuter.Ki = 1.5f;
+    rollOuter.Kd = 0.3f;
 
-    rollInner.Kp = 0.8f;
+    rollInner.Kp = 1.5f;
     rollInner.Ki = 0.0f;
-    rollInner.Kd = 4.5f;
+    rollInner.Kd = 15.0f;
 
     // pitch
-    pitchOuter.Kp = 4.0f;
-    pitchOuter.Ki = 0.0f;
-    pitchOuter.Kd = 0.0f;
+    pitchOuter.Kp = 5.0f;
+    pitchOuter.Ki = 1.5f;
+    pitchOuter.Kd = 0.3f;
 
-    pitchInner.Kp = 0.8f;
+    pitchInner.Kp = 1.5f;
     pitchInner.Ki = 0.0f;
-    pitchInner.Kd = 4.5f;
+    pitchInner.Kd = 15.0f;
 
     // Yaw
     yawSingle.Kp = 10.0f;
@@ -61,21 +61,22 @@ static float limit(float x, float minv, float maxv) {
  */
 float serialPIDcontrol(float errTheta, float omega, PID_t *outer, PID_t *inner) {
     // if (++outer->cnt2 == 2) {
-        // if (fabsf(errTheta) < 3.0f) errTheta = 0.0; 
-        outer->err = errTheta;
-        if (expMode > 1500)
-            outer->errSum = limit(outer->errSum + outer->err * 0.03, -OUTER_INT_MAX, OUTER_INT_MAX);
-        outer->outputP = outer->Kp * outer->err;
-        outer->outputI = outer->Ki * outer->errSum;
-        outer->outputD = -outer->Kd * omega;
-        outer->output = outer->outputP + outer->outputI + outer->outputD;
-        // outer->output = outer->Kp * outer->err + outer->Ki * outer->errSum - outer->Kd * omega;
+        // if (fabsf(errTheta) > 1.0f) {
+            outer->err = errTheta;
+            if (expMode > 1440)
+                outer->errSum = limit(outer->errSum + outer->err * 0.003, -OUTER_INT_MAX, OUTER_INT_MAX);
+            outer->outputP = outer->Kp * outer->err;
+            outer->outputI = outer->Ki * outer->errSum;
+            outer->outputD = -outer->Kd * omega;
+            outer->output = outer->outputP + outer->outputI + outer->outputD;
+            // outer->output = outer->Kp * outer->err + outer->Ki * outer->errSum - outer->Kd * omega;
+        // }
         // outer->cnt2 = 0;
     // }
 
     inner->err = outer->output - omega;
-    if (expMode > 1500)
-        inner->errSum = limit(inner->errSum + inner->err * 0.03, -INNER_INT_MAX, INNER_INT_MAX);
+    if (expMode > 1440)
+        inner->errSum = limit(inner->errSum + inner->err * 0.003, -INNER_INT_MAX, INNER_INT_MAX);
     // inner->output = inner->Kp * inner->err + inner->Ki * inner->errSum + inner->Kd * (inner->err - inner->errLast);
     inner->outputP = inner->Kp * inner->err;
     inner->outputI = inner->Ki * inner->errSum;
@@ -83,11 +84,11 @@ float serialPIDcontrol(float errTheta, float omega, PID_t *outer, PID_t *inner) 
     // inner->outputD = inner->Kd * (inner->errLast - omega);
     inner->output = inner->outputP + inner->outputI + inner->outputD;
     inner->errLast = inner->err;
-    // if (++inner->cnt == 10) {
-        // inner->errLast = inner->err;
+    if (++inner->cnt == 10) {
+        inner->errLast = inner->err;
         // inner->errLast = omega;
-        // inner->cnt = 0;
-    // }
+        inner->cnt = 0;
+    }
     // printf("outer->output = %f omega = %f errLast = %f err = %f outputD = %f\r\n", outer->output, omega, inner->errLast, inner->err, inner->outputD);
     inner->output = limit(inner->output, -PWM_OUT_MAX, PWM_OUT_MAX);
 
@@ -96,8 +97,8 @@ float serialPIDcontrol(float errTheta, float omega, PID_t *outer, PID_t *inner) 
 
 float singlePIDcontrol(float omega, PID_t *pid) {
     pid->err = expYaw - omega;
-    if (expMode > 1500)
-        pid->errSum = limit(pid->errSum + pid->err * 0.03, -OUTER_INT_MAX, OUTER_INT_MAX);
+    if (expMode > 1440)
+        pid->errSum = limit(pid->errSum + pid->err * 0.003, -OUTER_INT_MAX, OUTER_INT_MAX);
     pid->outputP = pid->Kp * pid->err;
     pid->outputI = pid->Ki * pid->errSum;
     pid->outputD = pid->Kd * (pid->err - pid->errLast);
@@ -139,6 +140,10 @@ void pidControl(float *gyroFilterd) {
     // motor4 = limit(expMode - pidRoll + pidPitch, 1000, 2000);
 
     // 电机输出（1000 对应 0% 油门，2000 对应 100% 油门）
+    // motor1 = limit(expMode + 1.1f * pidRoll - pidPitch - pidYaw, 1000, 1800);
+    // motor2 = limit(expMode + 1.1f * pidRoll + pidPitch + pidYaw, 1000, 1800);
+    // motor3 = limit(expMode - 0.9f * pidRoll - pidPitch + pidYaw, 1000, 1800);
+    // motor4 = limit(expMode - 0.9f * pidRoll + pidPitch - pidYaw, 1000, 1800);
     motor1 = limit(expMode + pidRoll - pidPitch - pidYaw, 1000, 1800);
     motor2 = limit(expMode + pidRoll + pidPitch + pidYaw, 1000, 1800);
     motor3 = limit(expMode - pidRoll - pidPitch + pidYaw, 1000, 1800);

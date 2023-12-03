@@ -1,4 +1,5 @@
 #include "GaussNewton.h"
+#include "MahonyAHRS.h"
 #include "misc.h"
 #include "delay.h"
 #include "motor.h"
@@ -17,9 +18,10 @@
 
 #define TASK_STK_SIZE 512
 
-OS_STK First_Task_Stk[TASK_STK_SIZE], Main_Task_Stk[TASK_STK_SIZE];
+OS_STK First_Task_Stk[TASK_STK_SIZE], Main_Task_Stk[TASK_STK_SIZE], ANO_Task_Stk[TASK_STK_SIZE];
 #define First_Task_PRIO 3
 #define Main_Task_PRIO 5
+#define ANO_Task_PRIO 7
 
 void First_Task(void *arg) {
 	SysTick_Init(84);  // 初始化 SysTick
@@ -49,10 +51,10 @@ void First_Task(void *arg) {
 }
 
 extern uint16_t data[];
-float deltaT = 0.002f;
+volatile float deltaT = 0.003f;
 Angle angle;
 int correctFlag = -1;
-float rollOffset = 0.349478f, pitchOffset = -7.9f, rollOffsetSum, pitchOffsetSum;
+float rollOffset = 1.642751f, pitchOffset = -6.910904f, rollOffsetSum, pitchOffsetSum;
 
 // quaternion of sensor frame relative to auxiliary frame
 volatile float q0 = 1.0f, q1 = 0.0f, q2 = 0.0f, q3 = 0.0f;
@@ -64,11 +66,12 @@ void toEulerAngles(Angle *angle) {
 	angle->roll = atan2(2 * q2 * q3 + 2 * q0 * q1, -2 * q1 * q1 - 2 * q2* q2 + 1) * RAD_TO_DEGREE - rollOffset; // roll
 }
 
+
+static short Acel[3], Gyro[3], Mag[3];
+static float acc[3], gyro[3], mag[3];
+static float gyroFiltered[3] = {0.0f, 0.0f, 0.0f};
+static float Temp;
 void Main_Task(void *arg) {
-	short Acel[3], Gyro[3], Mag[3];
-	float acc[3], gyro[3], mag[3];
-	float gyroFiltered[3] = {0.0f, 0.0f, 0.0f};
-	float Temp;
 	TIM4_Init();
 	// prepareData();
 	// printf("Accelaration calibration begin...\r\n");
@@ -89,7 +92,7 @@ void Main_Task(void *arg) {
 		gyro[2] = Gyro[2] * RAW_TO_RAD - gyroCali.Oz;
 		// gyroLowPassFilter(gyro, gyroFiltered);
 		memcpy(gyroFiltered, gyro, sizeof(gyro));
-		MPU6050_ReturnTemp(&Temp);
+		// MPU6050_ReturnTemp(&Temp);
 		// printf("    Temp %8.2f", Temp);
 		HMC_ReadMa(Mag);
 		mag[0] = ((Mag[0] / 1090.0f) - magCali.Ox) * magCali.Sx;
@@ -97,18 +100,23 @@ void Main_Task(void *arg) {
 		mag[2] = ((Mag[2] / 1090.0f) - magCali.Oz) * magCali.Sz;
 		// printf("    MagX: %.4f MagY: %.4f\tMagZ: %.4f\r\n", mag[0], mag[1], mag[2]);
 		deltaT = TIM4->CNT / 1000000.0f;
+		TIM4->CNT = 0;
 		// MadgwickAHRSupdate(gyro[0], gyro[1], gyro[2], 
 		// 				   acc[0], acc[1], acc[2], 
 		// 				   mag[0], mag[1], mag[2]);
-		MadgwickAHRSupdateIMU(gyro[0], gyro[1], gyro[2], 
-							  acc[0], acc[1], acc[2]);
+		// MadgwickAHRSupdateIMU(gyro[0], gyro[1], gyro[2], 
+		//					  acc[0], acc[1], acc[2]);
 		// MahonyAHRSupdate(gyro[0], gyro[1], gyro[2], 
 		// 				 acc[0], acc[1], acc[2], 
 		// 				 mag[0], mag[1], mag[2]);
-		TIM4->CNT = 0;
+		MahonyAHRSupdateIMU(gyro[0], gyro[1], gyro[2], 
+							acc[0], acc[1], acc[2]);
+		// Attitude_Update(gyro[0], gyro[1], gyro[2], 
+		// 				acc[0], acc[1], acc[2], 
+		// 				mag[0], mag[1], mag[2]);
 		pidControl(gyroFiltered);
 		toEulerAngles(&angle);
-		if (++count % 100 == 0) {
+		// if (++count % 100 == 0) {
 			// for (int i = 1; i <= 8; ++i) {
 			// 	printf("%d ", data[i]);
 			// }
@@ -117,8 +125,9 @@ void Main_Task(void *arg) {
 			// printf("\tgyroX: %.4f\tgyroY: %.4f\tgyroZ: %.4f", gyro[0] * RAD_TO_DEGREE, gyro[1] * RAD_TO_DEGREE, gyro[2] * RAD_TO_DEGREE);
 			// printf("\tMagX: %.4f\tMagY: %.4f\tMagZ: %.4f", mag[0], mag[1], mag[2]);
 			// printf("\tdeltaT: %.4f\r\n", deltaT);	
-			sendInfo(acc, gyro, gyroFiltered, mag, Temp);
-		}
+			// printf("count = %d\r\n", count);
+			// sendInfo(acc, gyro, gyroFiltered, mag, Temp);
+		// }
 		if (correctFlag != -1) {
 			if (correctFlag == 0) {
 				rollOffsetSum = rollOffset = 0.0f;
@@ -133,8 +142,17 @@ void Main_Task(void *arg) {
 				printf("Correct success: rollOffset = %f, pitchOffset = %f\r\n", rollOffset, pitchOffset);
 			}
 		}
+		OSTimeDlyHMSM(0, 0, 0, 2);
 	}
 }
+
+void ANO_Task(void *arg) {
+	while (1) {
+		sendInfo(acc, gyro, gyroFiltered, mag, Temp);
+		OSTimeDlyHMSM(0, 0, 0, 50);
+	}
+}
+
 
 int main(void) { 
 	SystemInit(); 
@@ -142,10 +160,12 @@ int main(void) {
 	OSInit();
 	OSTaskCreateExt(First_Task, (void *)0, &First_Task_Stk[TASK_STK_SIZE - 1], First_Task_PRIO, First_Task_PRIO, First_Task_Stk, TASK_STK_SIZE, (void *)0, OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR);
 	OSTaskCreateExt(Main_Task, (void *)0, &Main_Task_Stk[TASK_STK_SIZE - 1], Main_Task_PRIO, Main_Task_PRIO, Main_Task_Stk, TASK_STK_SIZE, (void *)0, OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR);
+	OSTaskCreateExt(ANO_Task, (void *)0, &ANO_Task_Stk[TASK_STK_SIZE - 1], ANO_Task_PRIO, ANO_Task_PRIO, ANO_Task_Stk, TASK_STK_SIZE, (void *)0, OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR);
 
 	INT8U os_err;
 	OSTaskNameSet(First_Task_PRIO, (INT8U *)"First_Task", &os_err);
 	OSTaskNameSet(Main_Task_PRIO, (INT8U *)"Main_Task", &os_err);
+	OSTaskNameSet(ANO_Task_PRIO, (INT8U *)"ANO_Task", &os_err);
 
 	OSStart();
 

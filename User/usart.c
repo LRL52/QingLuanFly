@@ -12,6 +12,30 @@ extern Angle angle;
 extern volatile float q0, q1, q2, q3;
 extern PID_t rollInner, rollOuter, pitchInner, pitchOuter, yawSingle;
 
+#if 1
+
+#pragma import(__use_no_semihosting)
+
+/* 定义 _sys_exit() 以避免使用半主机模式 */
+struct __FILE
+{
+    int handle;
+};
+
+FILE __stdout;
+void _sys_exit(int x)
+{
+    x = x;
+}
+//重定义fputc函数
+int fputc(int ch, FILE *f)
+{
+    while((USART6->SR & 0X40)==0);
+    USART6->DR = (uint8_t) ch;
+    return ch;
+}
+#endif
+
 void MyUsart_Init(void) {
     GPIO_InitTypeDef GPIO_InitTypeStruct;
 
@@ -30,7 +54,7 @@ void MyUsart_Init(void) {
     GPIO_Init(GPIOC, &GPIO_InitTypeStruct);          		 //初始化 PC6, PC7
 
     USART_InitTypeDef USART_InitTypeStruct;
-    USART_InitTypeStruct.USART_BaudRate = 9600;
+    USART_InitTypeStruct.USART_BaudRate = 115200;
     USART_InitTypeStruct.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
     USART_InitTypeStruct.USART_Mode = USART_Mode_Tx | USART_Mode_Rx;
     USART_InitTypeStruct.USART_Parity = USART_Parity_No;
@@ -178,10 +202,11 @@ void sendIMUstate2(float *mag, float Temp) {
     _write(0, (char*)data, sizeof(data));
 }
 
+extern float deltaT;
 void sendIMUstate1(float *gyro, float *gyroFilterd) {
-    uint8_t data[24];
+    uint8_t data[26];
     data[0] = 0xAA, data[1] = 0xFF, data[2] = 0xF1;
-    data[3] = 18; // 数据长度
+    data[3] = 20; // 数据长度
     int16_t t = gyro[0] * RAD_TO_DEGREE;
     *((int16_t*)&data[4]) = t;
     t = gyro[1] * RAD_TO_DEGREE;
@@ -200,6 +225,8 @@ void sendIMUstate1(float *gyro, float *gyroFilterd) {
     *((int16_t*)&data[18]) = t;
     t = gyroFilterd[2] * RAD_TO_DEGREE;
     *((int16_t*)&data[20]) = t;
+    t = deltaT * 1000000.0f;
+    *((int16_t*)&data[22]) = t;
     addCheckSum(data);
     _write(0, (char*)data, sizeof(data));
 }
