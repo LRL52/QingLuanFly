@@ -7,25 +7,17 @@
 #define N 6
 const int n = N; // 未知数个数为 6，即 beta = [Ox, Sx, Oy, Sy, Oz, Sz]T，
                  // 其中 Ox, Oy, Oz 为偏移量，Sx, Sy, Sz 为比例系数
-#define M 100
+#define M 300
 const int m = M; // 测量数据组数为 m
 
 static const float PI = 3.1415926535897932384626433f;
 static const float gyroMUL = (250.0f / 32768.0f) * (PI / 180.0f);
 
 float accData[M][3];
-// Ox = 0.036576, Sx = 0.945495, Oy = 0.011061, Sy = 0.993726, Oz = 0.650084, Sz = 0.956474
-// Ox = 0.010458, Sx = 0.990372, Oy = -0.014932, Sy = 0.989203, Oz = -0.129220, Sz = 0.987692
-// Ox = 0.011845, Sx = 0.973141, Oy = 0.019666, Sy = 0.996000, Oz = 0.636840, Sz = 0.915123
 cali accCali = {0.011845, 0.973141, 0.019666, 0.996000, 0.636840, 0.915123};
 float magData[M][3];
-// Ox = 0.026252, Sx = 1.870596, Oy = 0.095540, Sy = 2.205835, Oz = ‑0.023895, Sz = 2.003066
-// cali magCali = {0.026252, 1.870596, 0.095540, 2.205835, -0.023895, 2.003066};
 cali magCali = {0, 1, 0, 1, 0, 1};
 float gyroData[M][3];
-// gyroCali.Ox = -0.038951, gyroCali.Oy = -0.032154, gyroCali.Oz = -0.014719
-// gyroCali.Ox = -0.027533, gyroCali.Oy = 0.003023, gyroCali.Oz = 0.007796
-// gyroCali.Ox = -0.041914, gyroCali.Oy = -0.031408, gyroCali.Oz = -0.016465
 cali gyroCali = {-0.041914, 0, -0.031408, 0, -0.016465, 0};
 static const float eps = 1e-6;
 float LM_lamda = 0.1f;
@@ -43,32 +35,6 @@ void prepareData() {
     printf("Prepare data will begin in 5s...\r\n");
     OSTimeDlyHMSM(0, 0, 5, 0);
     printf("Prepare data begin...\r\n");
-    // for (int i = 0; i < n; ++i) {
-    //     int m = 10; // 采样次数
-    //     float acc[3] = {0, 0, 0};
-    //     float mag[3] = {0, 0, 0};
-    //     for (int j = 0; j < m; ++j) {
-    //         short accTemp[3], magTemp[3];
-    //         MPU6050ReadAcc(accTemp);
-    //         HMC_ReadMa(magTemp);
-    //         for (int k = 0; k < 3; ++k) {
-    //             acc[k] += accTemp[k] / 16384.0f; // 加速度计量程变了这里记着改！
-    //             mag[k] += magTemp[k] / 1090.0f; // 磁力计量程变了这里记着改！
-    //         }
-    //         OSTimeDlyHMSM(0, 0, 0, 100);
-    //     }
-    //     for (int j = 0; j < 3; ++j) {
-    //         accData[i][j] = acc[j] / m;
-    //         magData[i][j] = mag[j] / m;
-    //     }
-    //     printf("accData[%d] = {%f, %f, %f}\r\n", i, accData[i][0], accData[i][1], accData[i][2]);
-    //     printf("magData[%d] = {%f, %f, %f}\r\n", i, magData[i][0], magData[i][1], magData[i][2]);
-    //     printf("Finished %d/%d\r\n", i + 1, n);
-    //     if (i != n - 1) {
-    //         printf("Next data will be collected in 3s...\r\n");
-    //         OSTimeDlyHMSM(0, 0, 3, 0);
-    //     }
-    // }
     for (int i = 0; i < m; ++i) {
         short accTemp[3], magTemp[3];
         MPU6050ReadAcc(accTemp);

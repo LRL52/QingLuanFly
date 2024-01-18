@@ -1,5 +1,6 @@
 #include "GaussNewton.h"
 #include "MahonyAHRS.h"
+#include "led.h"
 #include "misc.h"
 #include "delay.h"
 #include "motor.h"
@@ -18,16 +19,17 @@
 
 #define TASK_STK_SIZE 512
 
-OS_STK First_Task_Stk[TASK_STK_SIZE], Main_Task_Stk[TASK_STK_SIZE], ANO_Task_Stk[TASK_STK_SIZE];
+OS_STK First_Task_Stk[TASK_STK_SIZE], Main_Task_Stk[TASK_STK_SIZE], ANO_Task_Stk[TASK_STK_SIZE], LED_Task_Stk[TASK_STK_SIZE];
 #define First_Task_PRIO 3
 #define Main_Task_PRIO 5
 #define ANO_Task_PRIO 7
+#define LED_Task_PRIO 9
 
 void First_Task(void *arg) {
 	SysTick_Init(84);  // 初始化 SysTick
 
-	// LED_Init(); // 由于 PPM 占用了 LED 的引脚，所以这里不点亮 LED
-	// LED_On();
+	LED_Init(); // 由于 PPM 占用了 LED 的引脚，所以这里不点亮 LED
+	LED_On();
 
 	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
 	MyUsart_Init();
@@ -54,7 +56,8 @@ extern uint16_t data[];
 volatile float deltaT = 0.003f;
 Angle angle;
 int correctFlag = -1;
-float rollOffset = 1.642751f, pitchOffset = -6.910904f, rollOffsetSum, pitchOffsetSum;
+float rollOffset = -0.013094f, pitchOffset = -7.447712f, rollOffsetSum, pitchOffsetSum;
+float height = 0.0f;
 
 // quaternion of sensor frame relative to auxiliary frame
 volatile float q0 = 1.0f, q1 = 0.0f, q2 = 0.0f, q3 = 0.0f;
@@ -80,7 +83,7 @@ void Main_Task(void *arg) {
 	// gaussNewton(&magCali, magData);
 	// printf("Accelaration and magnetometer calibration finished!\r\n");
 	// OSTimeDlyHMSM(0, 0, 3, 0);
-	static uint32_t count = 0;
+	// static uint32_t count = 0;
 	while (1) {
 		MPU6050ReadAcc(Acel);
 		acc[0] = ((Acel[0] / 16384.0f) - accCali.Ox) * accCali.Sx;
@@ -106,11 +109,11 @@ void Main_Task(void *arg) {
 		// 				   mag[0], mag[1], mag[2]);
 		// MadgwickAHRSupdateIMU(gyro[0], gyro[1], gyro[2], 
 		//					  acc[0], acc[1], acc[2]);
-		// MahonyAHRSupdate(gyro[0], gyro[1], gyro[2], 
-		// 				 acc[0], acc[1], acc[2], 
-		// 				 mag[0], mag[1], mag[2]);
-		MahonyAHRSupdateIMU(gyro[0], gyro[1], gyro[2], 
-							acc[0], acc[1], acc[2]);
+		MahonyAHRSupdate(gyro[0], gyro[1], gyro[2], 
+						 acc[0], acc[1], acc[2], 
+						 mag[0], mag[1], mag[2]);
+		// MahonyAHRSupdateIMU(gyro[0], gyro[1], gyro[2], 
+							// acc[0], acc[1], acc[2]);
 		// Attitude_Update(gyro[0], gyro[1], gyro[2], 
 		// 				acc[0], acc[1], acc[2], 
 		// 				mag[0], mag[1], mag[2]);
@@ -142,17 +145,26 @@ void Main_Task(void *arg) {
 				printf("Correct success: rollOffset = %f, pitchOffset = %f\r\n", rollOffset, pitchOffset);
 			}
 		}
-		OSTimeDlyHMSM(0, 0, 0, 2);
+		OSTimeDlyHMSM(0, 0, 0, 1);
 	}
 }
 
 void ANO_Task(void *arg) {
 	while (1) {
-		sendInfo(acc, gyro, gyroFiltered, mag, Temp);
+		// sendInfo(acc, gyro, gyroFiltered, mag, Temp);
+		// printf("\tMagX: %.4f\tMagY: %.4f\tMagZ: %.4f\n", mag[0], mag[1], mag[2]);
 		OSTimeDlyHMSM(0, 0, 0, 50);
 	}
 }
 
+void LED_Task(void *arg) {
+	while (1) {
+		LED_On();
+		OSTimeDlyHMSM(0, 0, 0, 500);
+		LED_Off();
+		OSTimeDlyHMSM(0, 0, 0, 500);
+	}
+}
 
 int main(void) { 
 	SystemInit(); 
@@ -161,11 +173,13 @@ int main(void) {
 	OSTaskCreateExt(First_Task, (void *)0, &First_Task_Stk[TASK_STK_SIZE - 1], First_Task_PRIO, First_Task_PRIO, First_Task_Stk, TASK_STK_SIZE, (void *)0, OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR);
 	OSTaskCreateExt(Main_Task, (void *)0, &Main_Task_Stk[TASK_STK_SIZE - 1], Main_Task_PRIO, Main_Task_PRIO, Main_Task_Stk, TASK_STK_SIZE, (void *)0, OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR);
 	OSTaskCreateExt(ANO_Task, (void *)0, &ANO_Task_Stk[TASK_STK_SIZE - 1], ANO_Task_PRIO, ANO_Task_PRIO, ANO_Task_Stk, TASK_STK_SIZE, (void *)0, OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR);
+	OSTaskCreateExt(LED_Task, (void *)0, &LED_Task_Stk[TASK_STK_SIZE - 1], LED_Task_PRIO, LED_Task_PRIO, LED_Task_Stk, TASK_STK_SIZE, (void *)0, OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR);
 
 	INT8U os_err;
 	OSTaskNameSet(First_Task_PRIO, (INT8U *)"First_Task", &os_err);
 	OSTaskNameSet(Main_Task_PRIO, (INT8U *)"Main_Task", &os_err);
 	OSTaskNameSet(ANO_Task_PRIO, (INT8U *)"ANO_Task", &os_err);
+	OSTaskNameSet(LED_Task_PRIO, (INT8U *)"LED_Task", &os_err);
 
 	OSStart();
 

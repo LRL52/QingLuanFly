@@ -14,7 +14,6 @@ typedef struct {
     float outputI;  // 积分输出
     float outputD;  // 微分输出
     int cnt;
-    int cnt2;
 } PID_t;
 
 void pidInit();

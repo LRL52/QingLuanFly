@@ -5,12 +5,14 @@
 #include "MadgwickAHRS.h"
 #include "PID.h"
 #include "os_cpu.h"
+#include "stm32f4xx.h"
 #include "stm32f4xx_gpio.h"
+#include "stm32f4xx_rcc.h"
 #include "ucos_ii.h"
 
 extern Angle angle;
 extern volatile float q0, q1, q2, q3;
-extern PID_t rollInner, rollOuter, pitchInner, pitchOuter, yawSingle;
+extern PID_t rollInner, rollOuter, pitchInner, pitchOuter, yawInner, heightSingle;
 
 #if 1
 
@@ -41,10 +43,16 @@ void MyUsart_Init(void) {
 
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART6, ENABLE);
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
 
     // 串口6 对应引脚复用映射
     GPIO_PinAFConfig(GPIOC, GPIO_PinSource6, GPIO_AF_USART6); // GPIOC6 复用为 USART6
     GPIO_PinAFConfig(GPIOC, GPIO_PinSource7, GPIO_AF_USART6); // GPIOC7 复用为 USART6
+
+    // 串口1 对应引脚复用映射
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource9, GPIO_AF_USART1); // GPIOA9 复用为 USART1
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource10, GPIO_AF_USART1); // GPIOA10 复用为 USART1
 
     GPIO_InitTypeStruct.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7;  // GPIOC6 与 GPIOC7
     GPIO_InitTypeStruct.GPIO_Mode = GPIO_Mode_AF;            //复用功能
@@ -52,6 +60,9 @@ void MyUsart_Init(void) {
     GPIO_InitTypeStruct.GPIO_OType = GPIO_OType_PP;  		 //推挽复用输出
     GPIO_InitTypeStruct.GPIO_PuPd = GPIO_PuPd_UP;     		 //上拉
     GPIO_Init(GPIOC, &GPIO_InitTypeStruct);          		 //初始化 PC6, PC7
+
+    GPIO_InitTypeStruct.GPIO_Pin = GPIO_Pin_9 | GPIO_Pin_10; // GPIOA9 与 GPIOA10
+    GPIO_Init(GPIOA, &GPIO_InitTypeStruct);          		 //初始化 PA9, PA10
 
     USART_InitTypeDef USART_InitTypeStruct;
     USART_InitTypeStruct.USART_BaudRate = 115200;
@@ -62,6 +73,9 @@ void MyUsart_Init(void) {
     USART_InitTypeStruct.USART_WordLength = USART_WordLength_8b;
     USART_Init(USART6, &USART_InitTypeStruct);
 
+    USART_InitTypeStruct.USART_BaudRate = 9600;
+    USART_Init(USART1, &USART_InitTypeStruct);
+
     NVIC_InitTypeDef NVIC_InitTypeStruct;
     NVIC_InitTypeStruct.NVIC_IRQChannel = USART6_IRQn;
     NVIC_InitTypeStruct.NVIC_IRQChannelCmd = ENABLE;
@@ -69,27 +83,33 @@ void MyUsart_Init(void) {
     NVIC_InitTypeStruct.NVIC_IRQChannelSubPriority = 0;
     NVIC_Init(&NVIC_InitTypeStruct);
 
+    NVIC_InitTypeStruct.NVIC_IRQChannel = USART1_IRQn;
+    NVIC_Init(&NVIC_InitTypeStruct);
+
     USART_ITConfig(USART6, USART_IT_RXNE, ENABLE);
+    USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
 
     USART_Cmd(USART6, ENABLE);
+    USART_Cmd(USART1, ENABLE);
 }
 
 static char readBuffer[512];
 static int readBufferIndex = 0;
 extern int correctFlag;
 void USART6_IRQHandler() {
-    // OS_CPU_SR cpu_sr;
-    // OS_ENTER_CRITICAL();
-    // OSIntEnter();
+    OS_CPU_SR cpu_sr;
+    OS_ENTER_CRITICAL();
+    OSIntEnter();
     if (USART_GetITStatus(USART6, USART_IT_RXNE) == RESET) {
-        // OS_EXIT_CRITICAL();
-        // OSIntExit();
+        OS_EXIT_CRITICAL();
+        OSIntExit();
         return;
     }
     u16 data = USART_ReceiveData(USART6);
     readBuffer[readBufferIndex++] = data;
     if (data == '$') {
         readBuffer[readBufferIndex] = '\0';
+        // printf("%s\r\n", readBuffer);
         if (strcmp(readBuffer, "correct$") == 0) {
             correctFlag = 0;
         } else {
@@ -97,6 +117,8 @@ void USART6_IRQHandler() {
                 "innerKp = %f, innerKi = %f, innerKd = %f$", 
                 &rollOuter.Kp, &rollOuter.Ki, &rollOuter.Kd, \
                 &rollInner.Kp, &rollInner.Ki, &rollInner.Kd);
+            // sscanf(readBuffer, "heightKp = %f, heightKi = %f, heightKd = %f$", 
+            //     &heightSingle.Kp, &heightSingle.Ki, &heightSingle.Kd);
             rollInner.errLast = rollInner.errSum = 0.0f;
             rollOuter.errLast = rollOuter.errSum = 0.0f;
             pitchOuter.Kp = rollOuter.Kp, pitchOuter.Ki = rollOuter.Ki, pitchOuter.Kd = rollOuter.Kd;
@@ -107,13 +129,34 @@ void USART6_IRQHandler() {
                 "innerKp = %f, innerKi = %f, innerKd = %f\r\n", 
                 rollOuter.Kp, rollOuter.Ki, rollOuter.Kd, \
                 rollInner.Kp, rollInner.Ki, rollInner.Kd);
+            // printf("heightKp = %f, heightKi = %f, heightKd = %f\r\n", 
+            //     heightSingle.Kp, heightSingle.Ki, heightSingle.Kd);
         }
         readBufferIndex = 0;
     }
     // while (USART_GetFlagStatus(USART6, USART_FLAG_TC) == RESET) {};
     // USART_SendData(USART6, data);
-    // OS_EXIT_CRITICAL();
-    // OSIntExit();
+    OS_EXIT_CRITICAL();
+    OSIntExit();
+}
+
+static char heightBuffer[512];
+static int heightBufferIndex = 0;
+extern float height;
+void USART1_IRQHandler() {
+    if (USART_GetITStatus(USART1, USART_IT_RXNE) == RESET) {
+        return;
+    }
+    u16 data = USART_ReceiveData(USART1);
+    heightBuffer[heightBufferIndex++] = data;
+    if (data == 0x83) heightBufferIndex = 3;
+    if (heightBufferIndex == 11) {
+        if (heightBuffer[3] != 'E') {
+            height = ((heightBuffer[3] - '0') * 100.0f + (heightBuffer[4] - '0') * 10.0f + (heightBuffer[5] - '0') + \
+                     (heightBuffer[7] - '0') * 0.1f + (heightBuffer[8] - '0') * 0.01f + (heightBuffer[9] - '0') * 0.001f) * 100.0f;
+        }
+        heightBufferIndex = 0;
+    } 
 }
 
 int _write(int fd, char *pBuffer, int size) {
@@ -202,7 +245,7 @@ void sendIMUstate2(float *mag, float Temp) {
     _write(0, (char*)data, sizeof(data));
 }
 
-extern float deltaT;
+extern float deltaT, targetYaw;
 void sendIMUstate1(float *gyro, float *gyroFilterd) {
     uint8_t data[26];
     data[0] = 0xAA, data[1] = 0xFF, data[2] = 0xF1;
@@ -215,13 +258,13 @@ void sendIMUstate1(float *gyro, float *gyroFilterd) {
     *((int16_t*)&data[8]) = t;
     t = rollOuter.output;
     *((int16_t*)&data[10]) = t;
-    t = pitchOuter.output;
+    t = height * 10.0f;
     *((int16_t*)&data[12]) = t;
-    t = yawSingle.output;
+    t = yawInner.output;
     *((int16_t*)&data[14]) = t;
     t = gyroFilterd[0] * RAD_TO_DEGREE;
     *((int16_t*)&data[16]) = t;
-    t = gyroFilterd[1] * RAD_TO_DEGREE;
+    t = targetYaw * 10.0f;
     *((int16_t*)&data[18]) = t;
     t = gyroFilterd[2] * RAD_TO_DEGREE;
     *((int16_t*)&data[20]) = t;
@@ -231,8 +274,8 @@ void sendIMUstate1(float *gyro, float *gyroFilterd) {
     _write(0, (char*)data, sizeof(data));
 }
 
-extern float expRoll, expPitch, expMode;
-extern float pidRoll, pidPitch;
+extern float expRoll, expPitch, expMode, expYaw;
+extern float pidRoll, pidPitch, pidThr, targetHeight;
 void sendPidInfo() {
     uint8_t data[26];
     data[0] = 0xAA, data[1] = 0xFF, data[2] = 0xF2;
@@ -253,9 +296,9 @@ void sendPidInfo() {
     *((int16_t*)&data[16]) = t;
     t = rollOuter.errSum * 10.0f;
     *((int16_t*)&data[18]) = t;
-    t = rollInner.errSum * 10.0f;
+    t = targetHeight * 10.0f;
     *((int16_t*)&data[20]) = t;
-    t = yawSingle.output * 10.0f;
+    t = yawInner.output * 10.0f;
     *((int16_t*)&data[22]) = t;
     addCheckSum(data);
     _write(0, (char*)data, sizeof(data));
@@ -267,7 +310,7 @@ void sendPidInfo2() {
     data[3] = 20; // 数据长度
     int16_t t = rollInner.outputP * 10.0f;
     *((int16_t*)&data[4]) = t;
-    t = rollInner.outputI * 10.0f;
+    t = expYaw * 10.0f;
     *((int16_t*)&data[6]) = t;
     t = rollInner.outputD * 10.0f;
     *((int16_t*)&data[8]) = t;
@@ -275,7 +318,7 @@ void sendPidInfo2() {
     *((int16_t*)&data[10]) = t;
     t = rollOuter.outputI * 10.0f;
     *((int16_t*)&data[12]) = t;
-    t = rollOuter.outputD * 10.0f;
+    t = pidThr * 10.0f;
     *((int16_t*)&data[14]) = t;
     t = rollOuter.output * 10.0f;
     *((int16_t*)&data[16]) = t;
@@ -293,7 +336,7 @@ void sendInfo(float *acc, float *gyro, float *gyroFilterd, float *mag, float Tem
 	sendQuaternion();
     // sendEulerAngle();
     sendIMUstate1(gyro, gyroFilterd);
-    // sendIMUstate2(mag, Temp);
+    sendIMUstate2(mag, Temp);
     sendPidInfo();
     sendPidInfo2();
 	sendMotorState();
